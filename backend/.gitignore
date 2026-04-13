@@ -1,0 +1,21 @@
+# Environment variables - keep private
+.env
+.env.*
+
+# Python virtual environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PDF/uploaded files
+*.pdf
+
+# IDE
+.vscode/
+.idea/
