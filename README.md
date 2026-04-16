@@ -20,13 +20,37 @@ Abhimanyu is an AI-driven mock interview platform that parses your resume, gener
 
 ## Tech Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js 14, Tailwind CSS |
-| Backend | FastAPI, Python 3.13 |
-| AI | Google Gemini 2.5 Flash (`google-genai`) |
-| Database | MongoDB |
-| Resume Parsing | pdfplumber |
+### Frontend
+| Package | Version | Purpose |
+|---------|---------|---------|
+| Next.js | 16.1.6 | React framework with App Router |
+| React | 19.2.3 | UI library |
+| Tailwind CSS | 4 | Utility-first styling |
+| Framer Motion | 12.35.2 | Animations |
+| Lucide React | 0.577.0 | Icon library |
+| Web Speech API | Browser native | Voice recognition & text-to-speech |
+
+### Backend
+| Package | Version | Purpose |
+|---------|---------|---------|
+| FastAPI | 0.135.3 | REST API framework |
+| Uvicorn | 0.41.0 | ASGI server |
+| Pydantic | 2.12.5 | Data validation |
+| python-multipart | 0.0.24 | File upload handling |
+| python-dotenv | 1.2.2 | Environment variable loading |
+
+### AI & ML
+| Package | Version | Purpose |
+|---------|---------|---------|
+| google-genai | 1.72.0 | Google Gemini 2.5 Flash API |
+| pdfplumber | 0.11.9 | PDF text & skill extraction |
+
+### Database & Auth
+| Package | Version | Purpose |
+|---------|---------|---------|
+| pymongo | 4.16.0 | MongoDB driver |
+| bcrypt | 5.0.0 | Password hashing |
+| passlib | 1.7.4 | Password utilities |
 
 ---
 
