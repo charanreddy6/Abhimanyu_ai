@@ -1,14 +1,51 @@
 import os
 import json
-import google.generativeai as genai
+import asyncio
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
-async def generate_questions(skills, role, difficulty, questions_count):
-    api_key = os.getenv("GEMINI_API_KEY")
-    genai.configure(api_key=api_key)
+MAX_RETRIES = 3
+RETRY_DELAY = 4  # seconds
 
+def get_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    return genai.Client(api_key=api_key)
+
+async def generate_with_retry(prompt: str) -> str:
+    """Call Gemini with up to MAX_RETRIES retries on failure, with RETRY_DELAY seconds between attempts."""
+    client = get_client()
+    last_error = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            return response.text.strip()
+        except Exception as e:
+            last_error = e
+            print(f"Gemini attempt {attempt}/{MAX_RETRIES} failed: {e}")
+            if attempt < MAX_RETRIES:
+                print(f"Retrying in {RETRY_DELAY}s...")
+                await asyncio.sleep(RETRY_DELAY)
+
+    raise last_error
+
+def clean_json(text: str) -> str:
+    """Strip markdown code fences from Gemini response."""
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+async def generate_questions(skills, role, difficulty, questions_count):
     prompt = f"""
     You are an expert technical interviewer conducting an interview for the role of '{role}'.
     The desired difficulty level is '{difficulty}'.
@@ -23,26 +60,17 @@ async def generate_questions(skills, role, difficulty, questions_count):
     """
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
-            
+        text = await generate_with_retry(prompt)
+        text = clean_json(text)
         questions = json.loads(text)
         if isinstance(questions, list):
             return questions
         else:
             return [str(q) for q in questions]
     except Exception as e:
-        print(f"Error parsing Gemini response: {e}")
+        print(f"Error parsing Gemini response after all retries: {e}")
         return ["Could not generate questions. Please try again later."]
+
 
 async def suggest_skills_and_roles(extracted_skills):
     if not extracted_skills:
@@ -50,10 +78,7 @@ async def suggest_skills_and_roles(extracted_skills):
             "suggested_skills": ["python", "java", "javascript", "react", "machine learning", "docker", "aws"],
             "suggested_roles": ["Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer", "Data Scientist"]
         }
-    
-    api_key = os.getenv("GEMINI_API_KEY")
-    genai.configure(api_key=api_key)
-    
+
     prompt = f"""
     The candidate has the following extracted skills from their resume: {extracted_skills}
     
@@ -66,33 +91,21 @@ async def suggest_skills_and_roles(extracted_skills):
     }}
     Do not include markdown formatting or any other text.
     """
-    
+
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
-            
+        text = await generate_with_retry(prompt)
+        text = clean_json(text)
         data = json.loads(text)
         return dict(data)
     except Exception as e:
-        print(f"Error generating suggestions: {e}")
+        print(f"Error generating suggestions after all retries: {e}")
         return {
             "suggested_skills": ["python", "java", "javascript", "react", "machine learning"],
             "suggested_roles": ["Software Engineer", "Full Stack Developer"]
         }
 
+
 async def evaluate_answers(questions, answers, role, skills):
-    api_key = os.getenv("GEMINI_API_KEY")
-    genai.configure(api_key=api_key)
-    
     prompt = f"""
     You are an expert technical interviewer evaluating a candidate for the role of '{role}'.
     The candidate has the following skills: {skills}.
@@ -120,23 +133,14 @@ async def evaluate_answers(questions, answers, role, skills):
     """
     for i, (q, a) in enumerate(zip(questions, answers)):
         prompt += f"\nQ{i+1}: {q}\nCandidate Answer {i+1}: {a}\n"
-        
+
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-            
+        text = await generate_with_retry(prompt)
+        text = clean_json(text)
         parsed_json = json.loads(text.strip())
         return parsed_json
     except Exception as e:
-        print(f"Error evaluating answers via Gemini: {str(e)}")
+        print(f"Error evaluating answers after all retries: {str(e)}")
         return {
             "overall_score": 0,
             "feedback_summary": "Failed to generate evaluation due to AI error.",

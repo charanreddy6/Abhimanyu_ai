@@ -100,8 +100,10 @@ async def get_questions(data: dict):
 
 @app.get("/models")
 def get_models():
-    import google.generativeai as genai
-    return {"models": [m.name for m in genai.list_models()]}
+    from google import genai
+    import os
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return {"models": [m.name for m in client.models.list()]}
 
 from database import interviews
 
